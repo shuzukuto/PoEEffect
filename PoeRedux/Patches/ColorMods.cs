@@ -114,6 +114,10 @@ public class ColorMods : IPatch
         new ColorModsOption("map_player_buff_time_passed_+%_only_buff_category", "red", true),
         new ColorModsOption("base_additional_physical_damage_reduction_%", "red", true),
         new ColorModsOption("local_block_chance_+%", "red", true),
+        new ColorModsOption("map_players_block_chance_+%", "red", true), 
+        new ColorModsOption("map_player_cannot_block", "red", true), 
+        new ColorModsOption("map_player_cannot_block_attacks", "red", true), 
+        new ColorModsOption("map_player_cannot_block_spells", "red", true), 
     };
 
     private readonly Dictionary<string, string> _color_conversions = new()

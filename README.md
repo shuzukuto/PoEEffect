@@ -136,3 +136,6 @@ Backups are stored per game under your Windows Local AppData folder:
 ## Support
 
 For issues, suggestions, or contributions, please visit the [GitHub repository](https://github.com/Gineticus/PoeRedux).
+
+## Color modifiers
+- Find detail from \metadata\statdescriptions\stat_descriptions.txt
