@@ -33,11 +33,16 @@ public class AppConfig
 
 /// <summary>
 /// Manages loading and saving user configuration across application runs.
-/// Configuration is saved in %LOCALAPPDATA%\PoeRedux\config.json.
+/// Configuration is saved in config.json alongside the application executable.
 /// </summary>
 public static class ConfigManager
 {
-    public static string ConfigFilePath { get; set; } = Path.Combine(
+    private static string ExeDirectory =>
+        Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory;
+
+    public static string ConfigFilePath { get; set; } = Path.Combine(ExeDirectory, "config.json");
+
+    private static readonly string FallbackConfigFilePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "PoeRedux", "config.json");
 
@@ -51,9 +56,19 @@ public static class ConfigManager
     {
         try
         {
+            // Primary location: alongside the executable
             if (File.Exists(ConfigFilePath))
             {
                 var json = File.ReadAllText(ConfigFilePath);
+                var config = JsonSerializer.Deserialize<AppConfig>(json, JsonOptions);
+                if (config != null)
+                    return config;
+            }
+
+            // Fallback / migration: check AppData if it was previously saved there
+            if (File.Exists(FallbackConfigFilePath))
+            {
+                var json = File.ReadAllText(FallbackConfigFilePath);
                 var config = JsonSerializer.Deserialize<AppConfig>(json, JsonOptions);
                 if (config != null)
                     return config;
@@ -82,7 +97,22 @@ public static class ConfigManager
         }
         catch
         {
-            // Best effort; ignore write failures
+            // If saving next to executable fails (e.g. read-only folder), fall back to AppData
+            try
+            {
+                var fallbackDir = Path.GetDirectoryName(FallbackConfigFilePath);
+                if (!string.IsNullOrEmpty(fallbackDir) && !Directory.Exists(fallbackDir))
+                {
+                    Directory.CreateDirectory(fallbackDir);
+                }
+
+                var json = JsonSerializer.Serialize(config, JsonOptions);
+                File.WriteAllText(FallbackConfigFilePath, json);
+            }
+            catch
+            {
+                // Best effort; ignore write failures
+            }
         }
     }
 }

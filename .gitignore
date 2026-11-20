@@ -404,3 +404,5 @@ FodyWeavers.xsd
 oo2core/
 publish/
 Exe File/
+config.json
+

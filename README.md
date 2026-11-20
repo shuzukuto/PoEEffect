@@ -132,10 +132,10 @@ Backups are stored per game in your Windows Local AppData folder. Each file is b
 
 PoeRedux automatically saves your settings (selected game, GGPK file paths for PoE 1/PoE 2, enabled patches, camera zoom, and color mods customization) across sessions so you don't need to reconfigure them each time you launch the app.
 
-Configuration is stored in your Windows Local AppData folder:
+Configuration is saved directly alongside the executable:
 
 ```
-%LOCALAPPDATA%\PoeRedux\config.json
+config.json
 ```
 
 ## System Requirements
