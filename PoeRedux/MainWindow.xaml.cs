@@ -20,15 +20,34 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<ColorModsViewModel> _colorMods = new();
     private string _ggpkPath = string.Empty;
     private string? _updateDownloadUrl;
+    private readonly AppConfig _config = ConfigManager.Load();
+    private bool _isInitialized;
 
     public MainWindow()
     {
         InitializeComponent();
         PatchesItemsControl.ItemsSource = _patches;
 
+        if (_config.SelectedGame == PoeGame.PoE2)
+        {
+            GameSelector.SelectedIndex = 1;
+        }
+        else
+        {
+            RestoreConfigForGame(PoeGame.PoE1);
+        }
+
+        if (_config.CameraZoom >= ZoomSlider.Minimum && _config.CameraZoom <= ZoomSlider.Maximum)
+        {
+            ZoomSlider.Value = _config.CameraZoom;
+        }
+
+        _isInitialized = true;
         UpdateStatus();
 
         DarkTitleBar.Enable(this);
+        Closing += (s, e) => SaveCurrentStateToConfig(SelectedGame);
+
         Loaded += async (s, e) =>
         {
             UpdateRestoreButtonState();
@@ -98,10 +117,17 @@ public partial class MainWindow : Window
 
     private void GameSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (_isInitialized)
+        {
+            var previousGame = SelectedGame == PoeGame.PoE2 ? PoeGame.PoE1 : PoeGame.PoE2;
+            SaveCurrentStateToConfig(previousGame);
+        }
+
         _patches.Clear();
         _colorMods.Clear();
 
-        foreach (var patch in CreatePatches(SelectedGame))
+        var currentGame = SelectedGame;
+        foreach (var patch in CreatePatches(currentGame))
         {
             _patches.Add(new PatchViewModel(patch));
             if (patch is ColorMods colorMods)
@@ -110,6 +136,8 @@ public partial class MainWindow : Window
                     _colorMods.Add(new ColorModsViewModel(option.Copy()));
             }
         }
+
+        RestoreConfigForGame(currentGame);
 
         // The first call comes from InitializeComponent, before the controls below the selector exist.
         if (ModsColorsButton != null)
@@ -128,6 +156,7 @@ public partial class MainWindow : Window
                 colorMod.Option.Color = colorMod.SelectedColor;
                 colorMod.Option.IsEnabled = colorMod.IsSelected;
             }
+            SaveCurrentStateToConfig(SelectedGame);
         }
         else
         {
@@ -198,6 +227,8 @@ public partial class MainWindow : Window
             else if (patch is ColorMods colorMods)
                 colorMods.ColorModsOptions = _colorMods.Select(cm => cm.Option.Copy()).ToList();
         }
+
+        SaveCurrentStateToConfig(SelectedGame);
 
         await ApplyPatches(patches);
     }
@@ -416,10 +447,92 @@ public partial class MainWindow : Window
         {
             StatusTextBlock.Text = "Please select a GGPK file to begin.";
         }
+        else if (!File.Exists(_ggpkPath))
+        {
+            StatusTextBlock.Text = $"File not found: {Path.GetFileName(_ggpkPath)}";
+        }
         else
         {
             StatusTextBlock.Text = $"Ready - {Path.GetFileName(_ggpkPath)}";
         }
+    }
+
+    private void RestoreConfigForGame(PoeGame game)
+    {
+        var savedPath = game == PoeGame.PoE2 ? _config.Poe2GgpkPath : _config.Poe1GgpkPath;
+        if (GgpkPathTextBox != null)
+        {
+            GgpkPathTextBox.Text = savedPath ?? string.Empty;
+        }
+
+        var savedPatches = game == PoeGame.PoE2 ? _config.Poe2SelectedPatches : _config.Poe1SelectedPatches;
+        var hasSettings = game == PoeGame.PoE2 ? _config.HasPoe2Settings : _config.HasPoe1Settings;
+        if (hasSettings && savedPatches != null)
+        {
+            var savedSet = new HashSet<string>(savedPatches, StringComparer.OrdinalIgnoreCase);
+            foreach (var patchVm in _patches)
+            {
+                patchVm.IsSelected = savedSet.Contains(patchVm.Name);
+            }
+        }
+
+        var savedColorMods = game == PoeGame.PoE2 ? _config.Poe2ColorMods : _config.Poe1ColorMods;
+        if (savedColorMods != null && savedColorMods.Count > 0)
+        {
+            foreach (var cm in _colorMods)
+            {
+                if (savedColorMods.TryGetValue(cm.Name, out var setting))
+                {
+                    cm.IsSelected = setting.Enabled;
+                    cm.Option.IsEnabled = setting.Enabled;
+                    if (!string.IsNullOrEmpty(setting.Color))
+                    {
+                        cm.SelectedColor = setting.Color;
+                        cm.Option.Color = setting.Color;
+                    }
+                }
+            }
+        }
+    }
+
+    private void SaveCurrentStateToConfig(PoeGame game)
+    {
+        if (game == PoeGame.PoE2)
+        {
+            _config.Poe2GgpkPath = _ggpkPath;
+            _config.Poe2SelectedPatches = _patches.Where(p => p.IsSelected).Select(p => p.Name).ToList();
+            _config.HasPoe2Settings = true;
+            _config.Poe2ColorMods = new Dictionary<string, ColorModSetting>();
+            foreach (var cm in _colorMods)
+            {
+                _config.Poe2ColorMods[cm.Name] = new ColorModSetting
+                {
+                    Enabled = cm.Option.IsEnabled,
+                    Color = cm.Option.Color
+                };
+            }
+        }
+        else
+        {
+            _config.Poe1GgpkPath = _ggpkPath;
+            _config.Poe1SelectedPatches = _patches.Where(p => p.IsSelected).Select(p => p.Name).ToList();
+            _config.HasPoe1Settings = true;
+            _config.Poe1ColorMods = new Dictionary<string, ColorModSetting>();
+            foreach (var cm in _colorMods)
+            {
+                _config.Poe1ColorMods[cm.Name] = new ColorModSetting
+                {
+                    Enabled = cm.Option.IsEnabled,
+                    Color = cm.Option.Color
+                };
+            }
+        }
+
+        _config.SelectedGame = SelectedGame;
+        if (ZoomSlider != null)
+            _config.CameraZoom = ZoomSlider.Value;
+
+        ConfigManager.Save(_config);
     }
 
     private async Task CheckForUpdatesAsync()

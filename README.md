@@ -128,6 +128,16 @@ Backups are stored per game in your Windows Local AppData folder. Each file is b
 
 **Note:** If you verify game files via PackCheck or Steam, the backups are no longer needed. Delete them with the **Delete Backup** button or remove the `.zip` files manually.
 
+## Configuration & Settings
+
+PoeRedux automatically saves your settings (selected game, GGPK file paths for PoE 1/PoE 2, enabled patches, camera zoom, and color mods customization) across sessions so you don't need to reconfigure them each time you launch the app.
+
+Configuration is stored in your Windows Local AppData folder:
+
+```
+%LOCALAPPDATA%\PoeRedux\config.json
+```
+
 ## System Requirements
 
 - **Operating System:** Windows 10 version 2004 or later / Windows 11
